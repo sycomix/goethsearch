@@ -43,8 +43,8 @@ func MultiSearch(ctx *cli.Context) error {
 						balance, _ := rpc.BalanceAt(ctx, common.HexToAddress(address), nil)
 						if balance.String() != "0" {
 							found++
-							fmt.Printf("[%d][%d - %d] %s => %s [%d]\n", num, found, count, string(address), string(privateKey), balance)
 						}
+						fmt.Printf("[%d][%d - %d] %s => %s [%d]\n", num, found, count, string(address), string(privateKey), balance)
 					} else {
 						found++
 						fmt.Printf("[%d][%d - %d] %s => %s \n", num, found, count, string(address), string(privateKey))
