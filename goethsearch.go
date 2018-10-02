@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"sync/atomic"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -15,12 +16,12 @@ import (
 
 //MultiSearch - Многопоточный поиск адресов
 func MultiSearch(ctx *cli.Context) error {
-	pattern := regexp.MustCompile(ctx.String("pattern"))
+	pattern := regexp.MustCompilePOSIX(ctx.String("pattern"))
 	threads := ctx.Int("threads")
-	count := ctx.Int("count")
+	count := ctx.Uint64("count")
 	check := ctx.Bool("balance")
 
-	found := 0
+	found := uint64(0)
 	rpc, err := ethclient.Dial("https://mainnet.infura.io/UoiDPLlaAoM5GmpK8aR3")
 	if err != nil {
 		panic("Connection error")
@@ -28,7 +29,7 @@ func MultiSearch(ctx *cli.Context) error {
 	for i := 0; i < threads; i++ {
 		go func(num int) {
 			ctx := context.Background()
-			for count > found {
+			for count > atomic.LoadUint64(&found) {
 				key, err := crypto.GenerateKey()
 
 				if err != nil {
@@ -42,12 +43,12 @@ func MultiSearch(ctx *cli.Context) error {
 					if check {
 						balance, _ := rpc.BalanceAt(ctx, common.HexToAddress(address), nil)
 						if balance.String() != "0" {
-							found++
+							atomic.AddUint64(&found, 1)
 						}
-						fmt.Printf("[%d][%d - %d] %s => %s [%d]\n", num, found, count, string(address), string(privateKey), balance)
+						fmt.Printf("[%d][%d - %d] %s => %s [%d]\n", num, atomic.LoadUint64(&found), count, string(address), string(privateKey), balance)
 					} else {
-						found++
-						fmt.Printf("[%d][%d - %d] %s => %s \n", num, found, count, string(address), string(privateKey))
+						atomic.AddUint64(&found, 1)
+						fmt.Printf("[%d][%d - %d] %s => %s \n", num, atomic.LoadUint64(&found), count, string(address), string(privateKey))
 					}
 				}
 			}
@@ -75,7 +76,7 @@ func main() {
 			Value: 1,
 			Usage: "Number of threads",
 		},
-		cli.IntFlag{
+		cli.Uint64Flag{
 			Name:  "count, c",
 			Value: 1,
 			Usage: "Number of keys",
